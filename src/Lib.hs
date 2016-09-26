@@ -1,6 +1,12 @@
 module Lib
 ( parseBody
+, parseText
+, parseEmph
+, parseItalic
+, parseParagraph
+, Block(..)
 , Parser
+, regularParse
 ) where
 
 import Text.Parsec (parse, try, Parsec)
@@ -11,6 +17,8 @@ import Text.Parsec.Char (letter, char)
 import Control.Applicative ((<*), (<|>), many)
 import Control.Monad (void)
 import Debug.Trace (trace)
+import Text.Parsec (ParseError)
+import Text.Parsec.Prim (runP)
 
 data Block
   = Paragraph [Block]
@@ -19,7 +27,7 @@ data Block
   | Emph [Block]
   | Italic [Block]
   | Header Int [Block]
-  deriving (Show)
+  deriving (Show, Eq)
 
 type Parser = Parsec String String
 
@@ -87,3 +95,6 @@ parseBody :: Parser [Block]
 parseBody = do
  paras <- many1 $ choice [try parseBlockquote, parseParagraph]
  return paras
+
+regularParse :: Parser a -> String -> Either ParseError a
+regularParse p = runP p "" ""

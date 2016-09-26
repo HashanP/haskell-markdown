@@ -1,12 +1,6 @@
 module Main where
 
-import Text.Parsec (ParseError)
-import Text.Parsec.Prim (runP)
-
-import Lib (parseBody, Parser)
-
-regularParse :: Parser a -> String -> Either ParseError a
-regularParse p = runP p "" ""
+import Lib (parseBody, Parser, regularParse)
 
 main :: IO ()
 main = do
