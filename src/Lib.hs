@@ -10,12 +10,12 @@ module Lib
 ) where
 
 import Text.Parsec (parse, try, Parsec)
-import Text.Parsec.Combinator (many1, count, choice, optional, optionMaybe, notFollowedBy, lookAhead)
+import Text.Parsec.Combinator (many1, count, choice, optional, optionMaybe, notFollowedBy, lookAhead, eof)
 import Text.Parsec.Error (ParseError)
 import Text.ParserCombinators.Parsec.Prim (getState, setState)
 import Text.Parsec.Char (letter, char)
 import Control.Applicative ((<*), (<|>), many)
-import Control.Monad (void)
+import Control.Monad (void, guard)
 import Debug.Trace (trace)
 import Text.Parsec (ParseError)
 import Text.Parsec.Prim (runP)
@@ -24,15 +24,16 @@ data Block
   = Paragraph [Block]
   | Blockquote [Block]
   | Text String
+  | Inline String
   | Emph [Block]
   | Italic [Block]
-  | Header Int [Block]
+  | Heading Int [Block]
   deriving (Show, Eq)
 
 type Parser = Parsec String String
 
 getParsers :: String -> [Parser Block]
-getParsers state = d ++ c ++ [parseText] 
+getParsers state = d ++ c ++ [parseInline, parseText] 
   where c | 'I' `notElem` state = [try parseItalic]
           | otherwise = []
         d | 'E' `notElem` state = [try parseEmph]
@@ -42,6 +43,13 @@ parseText :: Parser Block
 parseText = do
   text <- many1 parseLine 
   return $ Text (concat $ text)
+
+parseInline :: Parser Block
+parseInline = do
+  void $ char '`'
+  text <- many1 parseLine 
+  void $ char '`'
+  return $ Inline (concat $ text)
 
 parseLine :: Parser String
 parseLine = do
@@ -55,8 +63,8 @@ parseLine = do
 
 parseParagraph :: Parser Block
 parseParagraph = do
-  blocks <- many1 $ choice [try parseEmph, parseItalic, parseText]
-  void $ many1 (char '\n')
+  blocks <- many1 $ choice [parseInline, try parseEmph, parseItalic, parseText]
+  choice [void $ many1 (char '\n'), void $ eof]
   return $ Paragraph blocks
 
 {-
