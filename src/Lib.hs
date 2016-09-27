@@ -11,6 +11,7 @@ module Lib
 
 import Text.Parsec (parse, try, Parsec)
 import Text.Parsec.Combinator (many1, count, choice, optional, optionMaybe, notFollowedBy, lookAhead, eof, anyToken)
+import Text.Parsec.Char (satisfy)
 import Text.Parsec.Error (ParseError)
 import Text.ParserCombinators.Parsec.Prim (getState, setState)
 import Text.Parsec.Char (letter, char)
@@ -19,6 +20,7 @@ import Control.Monad (void, guard)
 import Debug.Trace (trace)
 import Text.Parsec (ParseError)
 import Text.Parsec.Prim (runP)
+import Data.List (intersperse)
 
 data Block
   = Paragraph [Block]
@@ -28,6 +30,7 @@ data Block
   | Emph [Block]
   | Italic [Block]
   | Heading Int [Block]
+  | Code String
   deriving (Show, Eq)
 
 type Parser = Parsec String String
@@ -123,9 +126,21 @@ parseItalic = do
   void $ char '*'
   return $ Italic blocks
 
+parseCodeLine :: Parser String
+parseCodeLine = do
+  void $ count 4 (char ' ')
+  line <- many (satisfy (\x -> x /= '\n'))
+  choice [eof, void (char '\n')]
+  return line
+
+parseCode :: Parser Block
+parseCode = do
+  lines <- many1 parseCodeLine
+  return $ Code (concat (intersperse "\n" lines))
+
 parseBody :: Parser [Block]
 parseBody = do
- paras <- many1 $ choice [try parseHeading, try parseBlockquote, parseParagraph]
+ paras <- many1 $ choice [try parseCode, try parseHeading, try parseBlockquote, parseParagraph]
  return paras
 
 regularParse :: Parser a -> String -> Either ParseError a

@@ -32,3 +32,7 @@ main = hspec $ do
     it "should work with headings" $ do
       getBlock (regularParse parseBody "# Bob") `shouldBe` [Heading 1 [Text "Bob"]]
       getBlock (regularParse parseBody "# Bob\n") `shouldBe` [Heading 1 [Text "Bob"]]
+    it "should work with indented code blocks" $ do
+      getBlock (regularParse parseBody "    Bob") `shouldBe` [Code "Bob"]
+      getBlock (regularParse parseBody "    Bob\n") `shouldBe` [Code "Bob"]
+      getBlock (regularParse parseBody "    Bob\n    Bobby") `shouldBe` [Code "Bob\nBobby"]
