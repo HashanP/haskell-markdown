@@ -10,7 +10,7 @@ module Lib
 ) where
 
 import Text.Parsec (parse, try, Parsec)
-import Text.Parsec.Combinator (many1, count, choice, optional, optionMaybe, notFollowedBy, lookAhead, eof)
+import Text.Parsec.Combinator (many1, count, choice, optional, optionMaybe, notFollowedBy, lookAhead, eof, anyToken)
 import Text.Parsec.Error (ParseError)
 import Text.ParserCombinators.Parsec.Prim (getState, setState)
 import Text.Parsec.Char (letter, char)
@@ -41,8 +41,9 @@ getParsers state = d ++ c ++ [parseInline, parseText]
 
 parseText :: Parser Block
 parseText = do
-  text <- many1 parseLine 
-  return $ Text (concat $ text)
+  line1 <- parseLine
+  rest <- many parseNewLine
+  return $ Text (concat $ line1:rest)
 
 parseInline :: Parser Block
 parseInline = do
@@ -61,11 +62,34 @@ parseLine = do
     Just _ -> first:rest ++ " "
     Nothing -> first:rest
 
+parseNewLine :: Parser String
+parseNewLine = do
+  hashes <- lookAhead (many (char '#'))
+  if length hashes > 0 && length hashes <= 6 
+    then do
+      next <- lookAhead anyToken
+      guard (next /= ' ' && next /= '\n')
+      parseLine
+    else do
+      parseLine
+      
+
 parseParagraph :: Parser Block
 parseParagraph = do
   blocks <- many1 $ choice [parseInline, try parseEmph, parseItalic, parseText]
   choice [void $ many1 (char '\n'), void $ eof]
   return $ Paragraph blocks
+
+parseHeading :: Parser Block
+parseHeading = do
+   hashes <- many1 (char '#')
+   guard (length hashes <= 6)
+   next <- anyToken
+   guard (next == ' ' || next == '\n')
+   void $ many (char ' ')
+   str <- parseLine
+   choice [eof, void (char '\n')]
+   return $ Heading (length hashes) [Text str]
 
 {-
 The markdown specification mandates, a line beginning with 0-3 spaces
@@ -101,7 +125,7 @@ parseItalic = do
 
 parseBody :: Parser [Block]
 parseBody = do
- paras <- many1 $ choice [try parseBlockquote, parseParagraph]
+ paras <- many1 $ choice [try parseHeading, try parseBlockquote, parseParagraph]
  return paras
 
 regularParse :: Parser a -> String -> Either ParseError a

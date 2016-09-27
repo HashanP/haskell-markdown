@@ -3,7 +3,7 @@ import Text.Parsec (ParseError)
 import Lib (parseText, parseEmph, parseItalic, parseParagraph, parseBody, Block(..), regularParse)
 import Control.Exception (evaluate)
 
-getBlock :: Either ParseError Block -> Block
+getBlock :: Either ParseError a -> a
 getBlock (Right blk) = blk
 getBlock (Left err) = error $ show err
 
@@ -28,3 +28,7 @@ main = hspec $ do
       getBlock (regularParse parseParagraph "**Bob\nBob\nBob**") `shouldBe` Paragraph [Emph [Text "Bob Bob Bob"]]
     it "shouldn't work with bold over several lines with a blank line" $ do
       evaluate (getBlock (regularParse parseParagraph "**Bob\nBob\n\nBob**")) `shouldThrow` anyException
+  describe "parseBody" $ do
+    it "should work with headings" $ do
+      getBlock (regularParse parseBody "# Bob") `shouldBe` [Heading 1 [Text "Bob"]]
+      getBlock (regularParse parseBody "# Bob\n") `shouldBe` [Heading 1 [Text "Bob"]]
